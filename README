@@ -20,3 +20,5 @@ This script is an evolution from the scripts posted at the following places:
   http://www.vim.org/scripts/script.php?script_id=2201
   http://playground.audioscrobbler.com/jonty/scmdiff.vim
 
+Addendum (2012-04-26): Modified to only support Git repositories and to show
+diff side-by-side like vimdiff.

@@ -27,15 +27,9 @@ let g:scmDiffRev = ''
 function! s:scmToggle()
 
     if exists('b:scmDiffOn') && b:scmDiffOn == 1
-        let b:scmDiffOn = 0
-        set nodiff
-        exe 'bdelete ' . b:scmDiffTmpfile
-        echohl DiffDelete | echon "scmdiff Disabled" | echohl None
+        call s:scmDiffOff()
     else
         call s:scmDiff()
-        if exists('b:scmDiffOn') && b:scmDiffOn == 1
-            echohl DiffAdd | echon "scmdiff Enabled" | echohl None
-        endif
     endif
 
 endfunction
@@ -48,66 +42,19 @@ function! s:scmRefresh()
 
 endfunction
 
-function! s:detectSCM()
-
-    " Cache the results we find here to save time
-    if exists("g:scmBufPath") && g:scmBufPath == expand("%:p:h") && exists("g:scmDiffCommand")
-        return
-    endif
-    let g:scmBufPath = expand("%:p:h")
-
-    " Detect CVS, SCCS(bitkeeper) or .svn directories in current path
-    if !exists("g:scmDiffCommand") && isdirectory(g:scmBufPath."/.svn")
-        let g:scmDiffCommand = "svn diff"
-        return
-    endif
-
-    if !exists("g:scmDiffCommand") && isdirectory(g:scmBufPath."/CVS")
-        let g:scmDiffCommand = "cvs diff"
-        return
-    endif
-
-    if !exists("g:scmDiffCommand") && isdirectory(g:scmBufPath."/SCCS")
-        let g:scmDiffCommand = "bk diffs"
-        return
-    endif
-
-    " Detect .git, SCCS(bitkeeper), .hg(mercurial), _darcs(darcs) directories recursively in reverse
-    let my_path = g:scmBufPath
-    while my_path != "/"
-        if !exists("g:scmDiffCommand") && isdirectory(my_path."/.git")
-            let g:scmDiffCommand = "git diff --no-ext-diff"
-            return
-        endif
-        if !exists("g:scmDiffCommand") && isdirectory(my_path."/.hg")
-            let g:scmDiffCommand = "hg diff"
-            return
-        endif
-        if !exists("g:scmDiffCommand") && isdirectory(my_path."/_darcs")
-            let g:scmDiffCommand = "darcs diff -u"
-            return
-        endif
-        let my_path = simplify(my_path."/../")
-    endwhile
-
+function! s:scmDiffOff()
+    let b:scmDiffOn = 0
+    set nodiff foldcolumn=0
+    exe 'bdelete ' . b:scmDiffTmpfile
 endfunction
 
 function! s:scmDiff(...)
 
-    call s:detectSCM()
-    if (!exists("g:scmDiffCommand"))
-        echohl WarningMsg | echon "Could not find .git, .svn, .hg, _darcs, SCCS, or CVS directories, are you under a supported SCM repository path?" | echohl None
-        return
-    endif
-
     if exists('b:scmDiffOn') && b:scmDiffOn == 1
-        let b:scmDiffOn = 0
-        set nodiff
-        exe 'bdelete ' . b:scmDiffTmpfile
+        call s:scmDiffOff()
     endif
 
     let b:scmDiffOn = 1
-    let view = winsaveview()
 
     if a:0 == 1
         if a:1 == 'none'
@@ -122,19 +69,7 @@ function! s:scmDiff(...)
 
     let ftype = &filetype
     let b:scmDiffTmpfile = tempname()
-    let cmd = 'cat ' . bufname('%') . ' > ' . b:scmDiffTmpfile
-    let cmdOutput = system(cmd)
-    let tmpdiff = tempname()
-    let cmd = 'cd ' . g:scmBufPath . ' && ' . g:scmDiffCommand . ' ' . g:scmDiffRev . ' ' . expand('%:t') . ' > ' . tmpdiff
-    let cmdOutput = system(cmd)
-    let doWrap = &wrap  " Save the current state of wrap for later
-
-    if v:shell_error && cmdOutput != ''
-        echohl WarningMsg | echon cmdOutput | echohl None
-        return
-    endif
-
-    let cmd = 'patch -R -p0 ' . b:scmDiffTmpfile . ' ' . tmpdiff
+    let cmd = 'cd ./' . expand('%:h') . ' && git show HEAD:' . expand('%:t') . ' > ' . b:scmDiffTmpfile
     let cmdOutput = system(cmd)
 
     if v:shell_error && cmdOutput != ''
@@ -142,29 +77,18 @@ function! s:scmDiff(...)
         return
     endif
 
-    if a:0 > 0 && a:1 == 'h'
-        exe 'diffsplit' . b:scmDiffTmpfile
-    else
-        exe 'vert diffsplit' . b:scmDiffTmpfile
-    endif
+    exe 'rightbelow vert diffsplit' . b:scmDiffTmpfile
 
     exe 'set filetype=' . ftype
 
-    hide
-    if doWrap == 1  
-        set wrap  "Restore the state of wrap
-    endif
-
     set foldcolumn=0
     set foldlevel=100
-    set diffopt= " removed filler so we don't show deleted lines
-    set noscrollbind
+    set readonly
+    winc h
+    set foldcolumn=0
 
-    call winrestview(view)
 
 endfunction
-
-autocmd CursorHold * call s:scmRefresh()
 
 
 " vim>600: expandtab sw=4 ts=4 sts=4 fdm=marker
