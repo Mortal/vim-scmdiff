@@ -69,7 +69,7 @@ function! s:scmDiff(...)
 
     let ftype = &filetype
     let b:scmDiffTmpfile = tempname()
-    let cmd = 'cd ./' . expand('%:h') . ' && git show HEAD:' . expand('%:t') . ' > ' . b:scmDiffTmpfile
+    let cmd = 'cd ./' . expand('%:h') . ' && git show HEAD:./' . expand('%:t') . ' > ' . b:scmDiffTmpfile
     let cmdOutput = system(cmd)
 
     if v:shell_error && cmdOutput != ''
